@@ -2064,6 +2064,33 @@ window.NIHONGO_STORE = (() => {
     const value=String(text||"");
     if (/[\u3040-\u30ff\u3400-\u9fff]/u.test(value)) speakJapanese(value);
   }
+  function romajiToHiragana(value) {
+    const text=String(value||"").toLowerCase().replace(/ā/g,"aa").replace(/ī/g,"ii").replace(/ū/g,"uu").replace(/ē/g,"ee").replace(/ō/g,"ou");
+    const syllables={
+      kya:"きゃ",kyu:"きゅ",kyo:"きょ",gya:"ぎゃ",gyu:"ぎゅ",gyo:"ぎょ",sha:"しゃ",shu:"しゅ",sho:"しょ",sya:"しゃ",syu:"しゅ",syo:"しょ",ja:"じゃ",ju:"じゅ",jo:"じょ",jya:"じゃ",jyu:"じゅ",jyo:"じょ",cha:"ちゃ",chu:"ちゅ",cho:"ちょ",tya:"ちゃ",tyu:"ちゅ",tyo:"ちょ",nya:"にゃ",nyu:"にゅ",nyo:"にょ",hya:"ひゃ",hyu:"ひゅ",hyo:"ひょ",bya:"びゃ",byu:"びゅ",byo:"びょ",pya:"ぴゃ",pyu:"ぴゅ",pyo:"ぴょ",mya:"みゃ",myu:"みゅ",myo:"みょ",rya:"りゃ",ryu:"りゅ",ryo:"りょ",fa:"ふぁ",fi:"ふぃ",fe:"ふぇ",fo:"ふぉ",fya:"ふゃ",fyu:"ふゅ",fyo:"ふょ",va:"ゔぁ",vi:"ゔぃ",vu:"ゔ",ve:"ゔぇ",vo:"ゔぉ",tsa:"つぁ",tsi:"つぃ",tse:"つぇ",tso:"つぉ",ti:"てぃ",tu:"とぅ",di:"でぃ",du:"どぅ",wi:"うぃ",we:"うぇ",kwa:"くぁ",kwi:"くぃ",kwe:"くぇ",kwo:"くぉ",
+      ka:"か",ki:"き",ku:"く",ke:"け",ko:"こ",sa:"さ",shi:"し",si:"し",su:"す",se:"せ",so:"そ",ta:"た",chi:"ち",tsu:"つ",te:"て",to:"と",na:"な",ni:"に",nu:"ぬ",ne:"ね",no:"の",ha:"は",hi:"ひ",fu:"ふ",hu:"ふ",he:"へ",ho:"ほ",ma:"ま",mi:"み",mu:"む",me:"め",mo:"も",ya:"や",yu:"ゆ",yo:"よ",ra:"ら",ri:"り",ru:"る",re:"れ",ro:"ろ",wa:"わ",wo:"を",ga:"が",gi:"ぎ",gu:"ぐ",ge:"げ",go:"ご",za:"ざ",ji:"じ",zi:"じ",zu:"ず",ze:"ぜ",zo:"ぞ",da:"だ",de:"で",do:"ど",ba:"ば",bi:"び",bu:"ぶ",be:"べ",bo:"ぼ",pa:"ぱ",pi:"ぴ",pu:"ぷ",pe:"ぺ",po:"ぽ",a:"あ",i:"い",u:"う",e:"え",o:"お"
+    };
+    let result="";
+    for (let i=0;i<text.length;) {
+      const char=text[i];
+      if (/\s/.test(char)) { result+=" "; i++; continue; }
+      if (char==="n"&&text[i+1]==="'") { result+="ん"; i+=2; continue; }
+      if (char==="n"&&(i===text.length-1||(!/[aiueoy]/.test(text[i+1])&&text[i+1]!=="'"))) { result+="ん"; i++; continue; }
+      if (char===text[i+1]&&/[bcdfghjklmpqrstvwxyz]/.test(char)&&char!=="n") { result+="っ"; i++; continue; }
+      const three=text.slice(i,i+3),two=text.slice(i,i+2);
+      if (syllables[three]) { result+=syllables[three]; i+=3; continue; }
+      if (syllables[two]) { result+=syllables[two]; i+=2; continue; }
+      if (char==="-") { result+="ー"; i++; continue; }
+      result+=char; i++;
+    }
+    return result;
+  }
+  function spokenChoice(question,choice) {
+    const value=String(choice||"");
+    if (/[\u3040-\u30ff\u3400-\u9fff]/u.test(value)) return value;
+    if (question.type==="reading"||question.type==="word-reading") return romajiToHiragana(value);
+    return "";
+  }
 
   const navItems = [
     {id:"home",label:"Jalur belajar",icon:"⌂"}, {id:"characters",label:"Aksara",icon:"あ"}, {id:"practice",label:"Latihan",icon:"◉"},
@@ -2590,10 +2617,10 @@ window.NIHONGO_STORE = (() => {
   function renderChoice(question) {
     const qState=lesson.questionState;
     const listen=lesson.course.activity==="listen";
-    const choicesAreJapanese=question.choices.some(choice=>/[\u3040-\u30ff\u3400-\u9fff]/u.test(choice));
+    const choicesAreJapanese=question.choices.some(choice=>spokenChoice(question,choice));
     return `${listen?`<div class="audio-prompt"><button type="button" class="audio-button" data-action="speak" aria-label="Putar pelafalan Jepang">▶</button><span>Putar bunyi Jepang${state().settings.romaji?` · ${esc(question.material.wordReading)}`:""}</span></div>`:""}
       ${questionExample(question.material)}
-      <div class="answer-grid" role="group" aria-label="Pilihan jawaban">${question.choices.map(choice=>`<button type="button" class="answer-option ${qState.selected===choice?"is-selected":""}" data-answer="${esc(choice)}" ${qState.checked?"disabled":""}>${esc(choice)}</button>`).join("")}</div>${choicesAreJapanese?'<p class="answer-note choice-audio-hint">Klik aksara untuk mendengar pelafalannya.</p>':""}`;
+      <div class="answer-grid" role="group" aria-label="Pilihan jawaban">${question.choices.map(choice=>{const speech=spokenChoice(question,choice);return `<button type="button" class="answer-option ${qState.selected===choice?"is-selected":""}" data-answer="${esc(choice)}" ${speech?`data-speech="${esc(speech)}"`:""} ${qState.checked?"disabled":""}>${esc(choice)}</button>`;}).join("")}</div>${choicesAreJapanese?'<p class="answer-note choice-audio-hint">Klik pilihan untuk mendengar pelafalannya.</p>':""}`;
   }
   function renderTrace(question) {
     const q=lesson.questionState;
@@ -2929,7 +2956,7 @@ window.NIHONGO_STORE = (() => {
     if (target.dataset.answer!==undefined) {
       if (lesson?.questionState.checked||lesson?.questionState.wrong) return;
       lesson.questionState.selected=target.dataset.answer;
-      speakIfJapanese(target.dataset.answer);
+      if (target.dataset.speech) speakJapanese(target.dataset.speech);
       document.querySelectorAll(".answer-option").forEach(button=>{button.classList.toggle("is-selected",button===target);button.setAttribute("aria-pressed",String(button===target));});
       syncCheckButton(); return;
     }
