@@ -1956,6 +1956,12 @@ window.NIHONGO_STORE = (() => {
   const DATA = window.NIHONGO;
   const Store = window.NIHONGO_STORE;
   const game = new Store.GameState();
+  const japaneseWordByMeaning = new Map();
+  for (const chapterId of ["hiragana","katakana","kanji"]) {
+    for (const item of DATA.itemPool[chapterId]||[]) {
+      if (item.wordMeaning&&item.word&&!japaneseWordByMeaning.has(item.wordMeaning)) japaneseWordByMeaning.set(item.wordMeaning,item.word);
+    }
+  }
   const root = document.getElementById("app");
   const esc = value => String(value ?? "").replace(/[&<>"']/g,char=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[char]));
   const state = () => game.getState();
@@ -2089,6 +2095,7 @@ window.NIHONGO_STORE = (() => {
     const value=String(choice||"");
     if (/[\u3040-\u30ff\u3400-\u9fff]/u.test(value)) return value;
     if (question.type==="reading"||question.type==="word-reading") return romajiToHiragana(value);
+    if (question.type==="meaning") return value===question.answer?question.material.word:(japaneseWordByMeaning.get(value)||"");
     return "";
   }
 
@@ -2618,9 +2625,10 @@ window.NIHONGO_STORE = (() => {
     const qState=lesson.questionState;
     const listen=lesson.course.activity==="listen";
     const choicesAreJapanese=question.choices.some(choice=>spokenChoice(question,choice));
+    const choiceHint=question.type==="meaning"?"Klik arti untuk mendengar kata Jepangnya.":"Klik pilihan untuk mendengar pelafalannya.";
     return `${listen?`<div class="audio-prompt"><button type="button" class="audio-button" data-action="speak" aria-label="Putar pelafalan Jepang">▶</button><span>Putar bunyi Jepang${state().settings.romaji?` · ${esc(question.material.wordReading)}`:""}</span></div>`:""}
       ${questionExample(question.material)}
-      <div class="answer-grid" role="group" aria-label="Pilihan jawaban">${question.choices.map(choice=>{const speech=spokenChoice(question,choice);return `<button type="button" class="answer-option ${qState.selected===choice?"is-selected":""}" data-answer="${esc(choice)}" ${speech?`data-speech="${esc(speech)}"`:""} ${qState.checked?"disabled":""}>${esc(choice)}</button>`;}).join("")}</div>${choicesAreJapanese?'<p class="answer-note choice-audio-hint">Klik pilihan untuk mendengar pelafalannya.</p>':""}`;
+      <div class="answer-grid" role="group" aria-label="Pilihan jawaban">${question.choices.map(choice=>{const speech=spokenChoice(question,choice);return `<button type="button" class="answer-option ${qState.selected===choice?"is-selected":""}" data-answer="${esc(choice)}" ${speech?`data-speech="${esc(speech)}"`:""} ${qState.checked?"disabled":""}>${esc(choice)}</button>`;}).join("")}</div>${choicesAreJapanese?`<p class="answer-note choice-audio-hint">${choiceHint}</p>`:""}`;
   }
   function renderTrace(question) {
     const q=lesson.questionState;
